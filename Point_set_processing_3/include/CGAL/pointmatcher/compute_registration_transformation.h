@@ -347,6 +347,22 @@ compute_registration_transformation(const PointRange1& range1, const PointRange2
   }
 #endif
 
+  // FLIGHTHELMET MODIF
+
+  /* Return the residual error between the two points clouds.
+    The error is based on the tech report: 
+    "Least-Squares Rigid Motion Using SVD", Olga Sorkine
+    -> http://igl.ethz.ch/projects/ARAP/svd_rot.pdf 
+  */
+  PM_cloud corrected_cloud = transform->compute(cloud, pm_transform_params);
+  icp.matcher->init(ref_cloud);
+  PM::Matches matches = icp.matcher->findClosests(corrected_cloud);
+  PM::OutlierWeights outlierWeights = icp.outlierFilters.compute(corrected_cloud, ref_cloud, matches);
+
+  float residualError = icp.errorMinimizer->getResidualError(corrected_cloud, ref_cloud, outlierWeights, matches); 
+
+  // FLIGHTHELMET MODIF
+  
   return std::make_pair(cgal_transform, converged);
 }
 
