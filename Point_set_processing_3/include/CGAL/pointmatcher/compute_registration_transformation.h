@@ -252,7 +252,7 @@ template <class Kernel,
           class PointMap2,
           class VectorMap1,
           class VectorMap2>
-std::pair<typename Kernel::Aff_transformation_3, bool>
+std::pair<typename Kernel::Aff_transformation_3, float>
 compute_registration_transformation(const PointRange1& range1, const PointRange2& range2,
                                     PointMap1 point_map1, PointMap2 point_map2,
                                     VectorMap1 vector_map1, VectorMap2 vector_map2,
@@ -363,7 +363,7 @@ compute_registration_transformation(const PointRange1& range1, const PointRange2
 
   // FLIGHTHELMET MODIF
   
-  return std::make_pair(cgal_transform, converged);
+  return std::make_pair(cgal_transform, residualError);
 }
 
 } // end of namespace internal
@@ -558,18 +558,21 @@ compute_registration_transformation(const PointRange1& range1, const PointRange2
    \cgalNamedParamsEnd
 
    \return a pair containing the affine transformation that should be applied
-   to `point_set_2` to make it registered w.r.t. `point_set_1` and the
-   boolean value indicating if the registration converged. The second
-   of the pair is `true` if converged, `false` otherwise. A log why it failed to
-   converge is written to `std::cerr` if the registration cannot converge.
+   to `point_set_2` to make it registered w.r.t. `point_set_1` 
+   ORIGIN -> {and the boolean value indicating if the registration converged. 
+   The second of the pair is `true` if converged, `false` otherwise.}
+   FLIGHTHELMET -> {the float is the residual error between the two 
+   points clouds.}
+   A log why it failed to converge is written to `std::cerr` if the 
+   registration cannot converge.
 */
 template <class PointRange1, class PointRange2,
           class NamedParameters1, class NamedParameters2>
 #ifdef DOXYGEN_RUNNING
-std::pair<geom_traits::Aff_transformation_3, bool>
+std::pair<geom_traits::Aff_transformation_3, float>
 #else
 std::pair<typename CGAL::Point_set_processing_3::GetK<PointRange1, NamedParameters1>
-  ::Kernel::Aff_transformation_3, bool>
+  ::Kernel::Aff_transformation_3, float>
 #endif
 compute_registration_transformation (const PointRange1& point_set_1, const PointRange2& point_set_2,
                                      const NamedParameters1& np1, const NamedParameters2& np2)
@@ -616,7 +619,7 @@ compute_registration_transformation (const PointRange1& point_set_1, const Point
 template <class PointRange1, class PointRange2,
           class NamedParameters1>
 std::pair<typename CGAL::Point_set_processing_3::GetK<PointRange1, NamedParameters1>
-  ::Kernel::Aff_transformation_3, bool>
+  ::Kernel::Aff_transformation_3, float>
 compute_registration_transformation(const PointRange1& point_set_1, const PointRange2& point_set_2,
       const NamedParameters1& np1)
 {
@@ -627,7 +630,7 @@ compute_registration_transformation(const PointRange1& point_set_1, const PointR
 template <class PointRange1, class PointRange2>
 std::pair<typename CGAL::Point_set_processing_3::GetK<PointRange1,
           Named_function_parameters<bool, internal_np::all_default_t> >
-  ::Kernel::Aff_transformation_3, bool>
+  ::Kernel::Aff_transformation_3, float>
 compute_registration_transformation(const PointRange1& point_set_1, const PointRange2& point_set_2)
 {
   namespace params = CGAL::Point_set_processing_3::parameters;
