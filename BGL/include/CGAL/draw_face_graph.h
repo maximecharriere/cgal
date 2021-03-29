@@ -59,7 +59,6 @@ struct ColorFunctorFaceGraph
     bool found;
     std::tie(colorPm, found) = mesh.property_map<EI, CGAL::Color>(getColorPropertyName<EI>());
     CGAL::Color c = found ? colorPm[elementIndex] : CGAL::Color();
-    std::cout << "R: " << c.r() << "  G: " << c.g() << "  B: " << c.b() ;
     return c;
   }
 };
@@ -112,7 +111,7 @@ public:
                           bool anofaces,
                           ColorFunctor fcolor) :
     // First draw: no vertex; edges, faces; mono-color; inverse normal
-    Base(parent, title, false, true, true, true, false),
+    Base(parent, title, false, true, true, false, false),
     m_compute_elements_impl(compute_elements_functor(amesh, anofaces, fcolor))
   {
   }
