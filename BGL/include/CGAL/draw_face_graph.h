@@ -202,13 +202,16 @@ protected:
 
       for (auto e: edges(sm))
       {
+        CGAL::Color c=fcolor(sm, e);
         add_segment(get(point_pmap, source(halfedge(e, sm), sm)),
-                    get(point_pmap, target(halfedge(e, sm), sm)));
+                    get(point_pmap, target(halfedge(e, sm), sm)),
+                    c);
       }
 
       for (auto v: vertices(sm))
       {
-        this->add_point(get(point_pmap, v));
+        CGAL::Color c=fcolor(sm, v);
+        this->add_point(get(point_pmap, v), c);
       }
     };
   }
