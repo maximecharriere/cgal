@@ -22,6 +22,50 @@
 namespace CGAL
 {
 
+// FLIGHTHELMET MODIF
+
+template <typename EI>
+std::string getColorPropertyName(void)
+{
+  return std::string("color");
+}
+
+template <>
+std::string getColorPropertyName<CGAL::SM_Face_index>(void)
+{
+  return std::string("f:color");
+}
+
+template <>
+std::string getColorPropertyName<CGAL::SM_Edge_index>(void)
+{
+  return std::string("e:color");
+}
+
+template <>
+std::string getColorPropertyName<CGAL::SM_Vertex_index>(void)
+{
+  return std::string("v:color");
+}
+
+// My color functor
+struct ColorFunctorFaceGraph
+{
+  template <typename Graph, typename EI>
+  CGAL::Color operator()(const Graph &mesh,
+                          EI elementIndex) const
+  {
+    Graph::Property_map<EI, CGAL::Color> colorPm;
+    bool found;
+    std::tie(colorPm, found) = mesh.property_map<EI, CGAL::Color>(getColorPropertyName<EI>());
+    CGAL::Color c = found ? colorPm[elementIndex] : CGAL::Color();
+    std::cout << "R: " << c.r() << "  G: " << c.g() << "  B: " << c.b() ;
+    return c;
+  }
+};
+
+// FLIGHTHELMET MODIF
+
 // Default color functor; user can change it to have its own face color
 struct DefaultColorFunctorFaceGraph
 {
@@ -30,7 +74,7 @@ struct DefaultColorFunctorFaceGraph
                          typename boost::graph_traits<Graph>::face_descriptor fh) const
   {
     if (fh==boost::graph_traits<Graph>::null_face()) // use to get the mono color
-      return CGAL::Color(100, 125, 200); // R G B between 0-255
+      return CGAL::Color(255, 0, 0); // R G B between 0-255
 
     return get_random_color(CGAL::get_default_random());
   }
@@ -57,7 +101,7 @@ public:
                           const SM& amesh,
                           const char* title="Basic Surface_mesh Viewer",
                           bool anofaces=false) :
-    SimpleFaceGraphViewerQt(parent, amesh, title, anofaces, DefaultColorFunctorFaceGraph())
+    SimpleFaceGraphViewerQt(parent, amesh, title, anofaces, ColorFunctorFaceGraph())
   {
   }
 
@@ -92,7 +136,7 @@ public:
   template <typename SM, typename ColorFunctor>
   void set_face_graph(const SM& amesh,
                       bool anofaces=false) {
-    set_mesh(amesh, anofaces, DefaultColorFunctorFaceGraph());
+    set_mesh(amesh, anofaces, ColorFunctorFaceGraph());
   }
 protected:
   template <typename SM, typename ColorFunctor>
