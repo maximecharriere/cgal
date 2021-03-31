@@ -285,6 +285,20 @@ namespace CGAL
         }
       }
 
+      template<class PM_cloud, class PM_matrix>
+      PM_cloud construct_PM_cloud(const PM_matrix &positions, const PM_matrix &normals)
+      {
+        PM_cloud cloud;
+
+        cloud.addFeature("x", positions.row(0));
+        cloud.addFeature("y", positions.row(1));
+        cloud.addFeature("z", positions.row(2));
+        cloud.addFeature("pad", positions.row(3));
+        cloud.addDescriptor("normals", normals);
+
+        return cloud;
+      }
+
       template <class Kernel,
                 class PointRange1,
                 class PointRange2,
@@ -331,20 +345,8 @@ namespace CGAL
                                                         points_pos_matrix,     // out
                                                         points_normal_matrix); // out
 
-        auto construct_PM_cloud = [](const PM_matrix &positions, const PM_matrix &normals) -> PM_cloud {
-          PM_cloud cloud;
-
-          cloud.addFeature("x", positions.row(0));
-          cloud.addFeature("y", positions.row(1));
-          cloud.addFeature("z", positions.row(2));
-          cloud.addFeature("pad", positions.row(3));
-          cloud.addDescriptor("normals", normals);
-
-          return cloud;
-        };
-
-        PM_cloud ref_cloud = construct_PM_cloud(ref_points_pos_matrix, ref_points_normal_matrix);
-        PM_cloud cloud = construct_PM_cloud(points_pos_matrix, points_normal_matrix);
+        PM_cloud ref_cloud = construct_PM_cloud<PM_cloud>(ref_points_pos_matrix, ref_points_normal_matrix);
+        PM_cloud cloud = construct_PM_cloud<PM_cloud>(points_pos_matrix, points_normal_matrix);
 
         PM_transform_params pm_transform_params = PM_transform_params::Identity(4, 4);
 
