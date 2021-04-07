@@ -66,19 +66,23 @@ namespace CGAL
                 class PointMap1,
                 class PointMap2,
                 class VectorMap1,
-                class VectorMap2>
+                class VectorMap2,
+                class PropertyMap1,
+                class PropertyMap2>
       bool transpose_properties(const PointRange1 &range1, const PointRange2 &range2,
                                 PointMap1 point_map1, PointMap2 point_map2,
                                 VectorMap1 vector_map1, VectorMap2 vector_map2,
+                                PropertyMap1 property_map1, PropertyMap2 &property_map2,
                                 std::shared_ptr<Matcher<Scalar>> matcher)
       {
-        // using Scalar = typename Kernel::FT;
 
         using PM = PointMatcher<Scalar>;
         using PM_cloud = typename PM::DataPoints;
         using PM_matrix = typename PM::Matrix;
         using PM_transform = typename PM::Transformation;
         using PM_transform_params = typename PM::TransformationParameters;
+
+        // typedef typename boost::property_traits<PropertyMap>::value_type PropertyType;
 
         // ref_points: 1, points: 2
         std::size_t nb_ref_points = range1.size();
@@ -111,9 +115,10 @@ namespace CGAL
         PM::Matches matches = matcher->findClosests(cloud);
 
         int idx = 0;
-        for (const auto &p : range1)
+        for (const auto &p : range2)
         {
-          std::cout << matches.ids(idx) << std::endl;
+          // put(PM, key, newValue)
+          put(property_map2, p, get(property_map1, *(range1.begin()+matches.ids(idx))));
           ++idx;
         }
 
@@ -145,17 +150,22 @@ namespace CGAL
                                                 typename boost::property_traits<NormalMap2>::value_type>::value),
                                 "The vector type of input ranges must be the same");
 
+
       typedef typename PSP::GetK<PointRange1, NamedParameters1>::Kernel Kernel;
       typedef typename Kernel::FT Scalar;
 
+      // Extract property
       PointMap1 point_map1 = choose_parameter(get_parameter(np1, internal_np::point_map), PointMap1());
       NormalMap1 normal_map1 = choose_parameter(get_parameter(np1, internal_np::normal_map), NormalMap1());
       PointMap2 point_map2 = choose_parameter(get_parameter(np2, internal_np::point_map), PointMap2());
       NormalMap2 normal_map2 = choose_parameter(get_parameter(np2, internal_np::normal_map), NormalMap2());
+      auto property_map1 = get_parameter(np1, internal_np::property_map);
+      auto property_map2 = get_parameter(np2, internal_np::property_map);
 
       return internal::transpose_properties<Scalar>(point_set_1, point_set_2,
                                                     point_map1, point_map2,
                                                     normal_map1, normal_map2,
+                                                    property_map1, property_map2,
                                                     internal::construct_matcher<Scalar>(np1));
     }
 
