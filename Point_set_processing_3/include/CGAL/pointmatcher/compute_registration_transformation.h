@@ -64,7 +64,7 @@ namespace CGAL
     namespace internal
     {
 
-      void dump_invalid_point_matcher_config_exception_msg(const PointMatcherSupport::InvalidElement &err)
+      inline void dump_invalid_point_matcher_config_exception_msg(const PointMatcherSupport::InvalidElement &err)
       {
         std::cerr << "ERROR Invalid configuration for PM::ICP, omitting configuration: " << std::endl;
         std::cerr << "   " << err.what() << std::endl;
