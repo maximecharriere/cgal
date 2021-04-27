@@ -1211,3 +1211,6 @@ gmon.*
 Polygonal_surface_reconstruction/examples/build*
 Polygonal_surface_reconstruction/test/build*
 Solver_interface/examples/build*
+
+/out
+/.vs
