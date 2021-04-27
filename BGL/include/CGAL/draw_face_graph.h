@@ -25,25 +25,25 @@ namespace CGAL
 // FLIGHTHELMET MODIF
 
 template <typename EI>
-std::string getColorPropertyName(void)
+inline std::string getColorPropertyName(void)
 {
   return std::string("color");
 }
 
 template <>
-std::string getColorPropertyName<CGAL::SM_Face_index>(void)
+inline std::string getColorPropertyName<CGAL::SM_Face_index>(void)
 {
   return std::string("f:color");
 }
 
 template <>
-std::string getColorPropertyName<CGAL::SM_Edge_index>(void)
+inline std::string getColorPropertyName<CGAL::SM_Edge_index>(void)
 {
   return std::string("e:color");
 }
 
 template <>
-std::string getColorPropertyName<CGAL::SM_Vertex_index>(void)
+inline std::string getColorPropertyName<CGAL::SM_Vertex_index>(void)
 {
   return std::string("v:color");
 }
