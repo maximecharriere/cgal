@@ -14,7 +14,7 @@
 
 #include <CGAL/license/Point_set_processing_3.h>
 
-#if defined(CGAL_LINKED_WITH_POINTMATCHER) || defined(DOXYGEN_RUNNING)
+//#if defined(CGAL_LINKED_WITH_POINTMATCHER) || defined(DOXYGEN_RUNNING)
 
 #include <CGAL/Aff_transformation_3.h>
 #include <CGAL/assertions.h>
@@ -285,6 +285,31 @@ namespace CGAL
         }
       }
 
+      // FLIGHTHELMET MODIF
+
+      template <typename Scalar,
+          typename PointRange,
+          typename PointMap,
+          typename VectorMap,
+          typename WeightMap,
+          typename PM_matrix>
+          void
+          copy_cgal_points_to_pm_matrix(const PointRange& prange, PointMap point_map, VectorMap vector_map, WeightMap weight_map, PM_matrix& pm_points, PM_matrix& pm_normals, PM_matrix& pm_weights)
+      {
+          copy_cgal_points_to_pm_matrix<Scalar>(prange, point_map, vector_map, pm_points, pm_normals);
+          int idx = 0;
+          for (const auto& p : prange)
+          {
+              // weight 
+              const auto& weight = get(weight_map, p);
+              pm_weights(0, idx) = weight;
+
+              ++idx;
+          }
+      }
+
+      // FLIGHTHELMET MODIF
+
       template<class PM_cloud, class PM_matrix>
       PM_cloud construct_PM_cloud(const PM_matrix &positions, const PM_matrix &normals)
       {
@@ -299,17 +324,35 @@ namespace CGAL
         return cloud;
       }
 
+      // FLIGHTHELMET MODIF
+
+      template<class PM_cloud, class PM_matrix>
+      PM_cloud construct_PM_cloud(const PM_matrix& positions, const PM_matrix& normals, const PM_matrix& weights)
+      {
+          PM_cloud cloud;
+
+          cloud = construct_PM_cloud<PM_cloud>(positions, normals);
+          cloud.addDescriptor("weights", weights);
+
+          return cloud;
+      }
+
+      // FLIGHTHELMET MODIF
+
       template <class Kernel,
                 class PointRange1,
                 class PointRange2,
                 class PointMap1,
                 class PointMap2,
                 class VectorMap1,
-                class VectorMap2>
+                class VectorMap2,
+                class WeightMap1, // FLIGHTHELMET MODIF
+                class WeightMap2> // FLIGHTHELMET MODIF
       std::pair<typename Kernel::Aff_transformation_3, float>
       compute_registration_transformation(const PointRange1 &range1, const PointRange2 &range2,
                                           PointMap1 point_map1, PointMap2 point_map2,
                                           VectorMap1 vector_map1, VectorMap2 vector_map2,
+                                          WeightMap1 weight_map1, WeightMap2 weight_map2, // FLIGHTHELMET MODIF
                                           const typename Kernel::Aff_transformation_3 &initial_transform,
                                           ICP<typename Kernel::FT> icp)
       {
@@ -327,8 +370,10 @@ namespace CGAL
 
         PM_matrix ref_points_pos_matrix = PM_matrix(4, nb_ref_points);
         PM_matrix ref_points_normal_matrix = PM_matrix(3, nb_ref_points);
+        PM_matrix ref_points_weight_matrix = PM_matrix(1, nb_ref_points);  // FLIGHTHELMET MODIF
         PM_matrix points_pos_matrix = PM_matrix(4, nb_points);
         PM_matrix points_normal_matrix = PM_matrix(3, nb_points);
+        PM_matrix points_weight_matrix = PM_matrix(1, nb_points);  // FLIGHTHELMET MODIF
 
         // In CGAL, point_set_1 is the reference while point_set_2 is the data
 
@@ -336,17 +381,21 @@ namespace CGAL
         internal::copy_cgal_points_to_pm_matrix<Scalar>(range1,
                                                         point_map1,
                                                         vector_map1,
+                                                        weight_map1, // FLIGHTHELMET MODIF
                                                         ref_points_pos_matrix,     // out
-                                                        ref_points_normal_matrix); // out
+                                                        ref_points_normal_matrix,  // out
+                                                        ref_points_weight_matrix); // out  // FLIGHTHELMET MODIF
 
         internal::copy_cgal_points_to_pm_matrix<Scalar>(range2,
                                                         point_map2,
                                                         vector_map2,
-                                                        points_pos_matrix,     // out
-                                                        points_normal_matrix); // out
+                                                        weight_map2 , // FLIGHTHELMET MODIF
+                                                        points_pos_matrix,         // out
+                                                        points_normal_matrix,      // out
+                                                        points_weight_matrix); // out  // FLIGHTHELMET MODIF
 
-        PM_cloud ref_cloud = construct_PM_cloud<PM_cloud>(ref_points_pos_matrix, ref_points_normal_matrix);
-        PM_cloud cloud = construct_PM_cloud<PM_cloud>(points_pos_matrix, points_normal_matrix);
+        PM_cloud ref_cloud = construct_PM_cloud<PM_cloud>(ref_points_pos_matrix, ref_points_normal_matrix, ref_points_weight_matrix);
+        PM_cloud cloud = construct_PM_cloud<PM_cloud>(points_pos_matrix, points_normal_matrix, points_weight_matrix);
 
         PM_transform_params pm_transform_params = PM_transform_params::Identity(4, 4);
 
@@ -642,6 +691,9 @@ namespace CGAL
       NormalMap1 normal_map1 = choose_parameter(get_parameter(np1, internal_np::normal_map), NormalMap1());
       PointMap2 point_map2 = choose_parameter(get_parameter(np2, internal_np::point_map), PointMap2());
       NormalMap2 normal_map2 = choose_parameter(get_parameter(np2, internal_np::normal_map), NormalMap2());
+      
+      auto weight_map1 = get_parameter(np1, internal_np::weight_map); // FLIGHTHELMET MODIF
+      auto weight_map2 = get_parameter(np2, internal_np::weight_map); // FLIGHTHELMET MODIF
 
       // initial transformation
       Transformation initial_transformation = choose_parameter(get_parameter(np2, internal_np::transformation), Transformation(Identity_transformation()));
@@ -649,6 +701,7 @@ namespace CGAL
       return internal::compute_registration_transformation<Kernel>(point_set_1, point_set_2,
                                                                    point_map1, point_map2,
                                                                    normal_map1, normal_map2,
+                                                                   weight_map1, weight_map2, // FLIGHTHELMET MODIF
                                                                    initial_transformation,
                                                                    internal::construct_icp<Scalar>(np1, np2));
     }

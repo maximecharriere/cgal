@@ -190,8 +190,5 @@ CGAL_add_named_parameter(maximum_running_time_t, maximum_running_time, maximum_r
 CGAL_add_named_parameter(overlap_t, overlap, overlap)
 CGAL_add_named_parameter(maximum_normal_deviation_t, maximum_normal_deviation, maximum_normal_deviation)
 
-// FLIGHTHELMET MODIF
-
-CGAL_add_named_parameter(property_map_t, property_map, property_map)
-
-// FLIGHTHELMET MODIF
+CGAL_add_named_parameter(property_map_t, property_map, property_map) // FLIGHTHELMET MODIF
+CGAL_add_named_parameter(weight_map_t, weight_map, weight_map) // FLIGHTHELMET MODIF
