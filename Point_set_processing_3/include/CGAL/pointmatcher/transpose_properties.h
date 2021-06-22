@@ -40,7 +40,7 @@ namespace CGAL
 
         std::shared_ptr<Matcher<Scalar>> matcher;
 
-        const ICP_config null_config{"_null_pm_config_in_cgal"};
+        const ICP_config null_config{ /*.name=*/"_null_pm_config_in_cgal", /*.params=*/{ } };
         auto is_null_config = [&](const ICP_config &c) { return !c.name.compare(null_config.name); };
 
         // Matcher

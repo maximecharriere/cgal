@@ -21,6 +21,7 @@
 #include <CGAL/boost/graph/Named_function_parameters.h>
 #include <CGAL/boost/graph/named_params_helper.h>
 #include <CGAL/aff_transformation_tags.h>
+#include <CGAL/property_map.h>
 
 #include <boost/type_traits/is_same.hpp>
 
@@ -83,7 +84,7 @@ namespace CGAL
 
         icp.setDefault();
 
-        const ICP_config null_config{"_null_pm_config_in_cgal"};
+        const ICP_config null_config{ /*.name=*/"_null_pm_config_in_cgal", /*.params=*/{ } };
         const std::vector<ICP_config> null_config_chain{null_config};
         auto is_null_config = [&](const ICP_config &c) { return !c.name.compare(null_config.name); };
 
@@ -261,9 +262,10 @@ namespace CGAL
                 typename PointRange,
                 typename PointMap,
                 typename VectorMap,
+                typename ScalarMap,
                 typename PM_matrix>
       void
-      copy_cgal_points_to_pm_matrix(const PointRange &prange, PointMap point_map, VectorMap vector_map, PM_matrix &pm_points, PM_matrix &pm_normals)
+      copy_cgal_points_to_pm_matrix(const PointRange &prange, PointMap point_map, VectorMap vector_map, ScalarMap scalar_map, PM_matrix &pm_points, PM_matrix &pm_normals, PM_matrix& pm_weights)
       {
         int idx = 0;
         for (const auto &p : prange)
@@ -281,12 +283,44 @@ namespace CGAL
           pm_normals(1, idx) = normal.y();
           pm_normals(2, idx) = normal.z();
 
+          // weight
+          const auto& weight = get(scalar_map, p);
+          pm_weights(0, idx) = weight;
+
           ++idx;
         }
       }
 
+	  template <typename Scalar,
+		  typename PointRange,
+		  typename PointMap,
+		  typename VectorMap,
+		  typename PM_matrix>
+		  void
+		  copy_cgal_points_to_pm_matrix(const PointRange& prange, PointMap point_map, VectorMap vector_map, PM_matrix& pm_points, PM_matrix& pm_normals)
+	  {
+		  int idx = 0;
+		  for (const auto& p : prange)
+		  {
+			  // position
+			  const auto& pos = get(point_map, p);
+			  pm_points(0, idx) = pos.x();
+			  pm_points(1, idx) = pos.y();
+			  pm_points(2, idx) = pos.z();
+			  pm_points(3, idx) = Scalar(1.);
+
+			  // normal
+			  const auto& normal = get(vector_map, p);
+			  pm_normals(0, idx) = normal.x();
+			  pm_normals(1, idx) = normal.y();
+			  pm_normals(2, idx) = normal.z();
+
+			  ++idx;
+		  }
+	  }
+
       template<class PM_cloud, class PM_matrix>
-      PM_cloud construct_PM_cloud(const PM_matrix &positions, const PM_matrix &normals)
+      PM_cloud construct_PM_cloud(const PM_matrix &positions, const PM_matrix &normals, const PM_matrix& weights)
       {
         PM_cloud cloud;
 
@@ -295,8 +329,23 @@ namespace CGAL
         cloud.addFeature("z", positions.row(2));
         cloud.addFeature("pad", positions.row(3));
         cloud.addDescriptor("normals", normals);
+        cloud.addDescriptor("weights", weights);
 
         return cloud;
+      }
+
+      template<class PM_cloud, class PM_matrix>
+      PM_cloud construct_PM_cloud(const PM_matrix& positions, const PM_matrix& normals)
+      {
+          PM_cloud cloud;
+
+          cloud.addFeature("x", positions.row(0));
+          cloud.addFeature("y", positions.row(1));
+          cloud.addFeature("z", positions.row(2));
+          cloud.addFeature("pad", positions.row(3));
+          cloud.addDescriptor("normals", normals);
+
+          return cloud;
       }
 
       template <class Kernel,
@@ -305,11 +354,14 @@ namespace CGAL
                 class PointMap1,
                 class PointMap2,
                 class VectorMap1,
-                class VectorMap2>
+                class VectorMap2,
+                class ScalarMap1,
+                class ScalarMap2>
       std::pair<typename Kernel::Aff_transformation_3, float>
       compute_registration_transformation(const PointRange1 &range1, const PointRange2 &range2,
                                           PointMap1 point_map1, PointMap2 point_map2,
                                           VectorMap1 vector_map1, VectorMap2 vector_map2,
+                                          ScalarMap1 scalar_map1, ScalarMap2 scalar_map2,
                                           const typename Kernel::Aff_transformation_3 &initial_transform,
                                           ICP<typename Kernel::FT> icp)
       {
@@ -327,8 +379,10 @@ namespace CGAL
 
         PM_matrix ref_points_pos_matrix = PM_matrix(4, nb_ref_points);
         PM_matrix ref_points_normal_matrix = PM_matrix(3, nb_ref_points);
+        PM_matrix ref_points_weight_matrix = PM_matrix(1, nb_ref_points);
         PM_matrix points_pos_matrix = PM_matrix(4, nb_points);
         PM_matrix points_normal_matrix = PM_matrix(3, nb_points);
+        PM_matrix points_weight_matrix = PM_matrix(1, nb_points);
 
         // In CGAL, point_set_1 is the reference while point_set_2 is the data
 
@@ -336,17 +390,21 @@ namespace CGAL
         internal::copy_cgal_points_to_pm_matrix<Scalar>(range1,
                                                         point_map1,
                                                         vector_map1,
+                                                        scalar_map1,
                                                         ref_points_pos_matrix,     // out
-                                                        ref_points_normal_matrix); // out
+                                                        ref_points_normal_matrix,  // out
+                                                        ref_points_weight_matrix); // out
 
         internal::copy_cgal_points_to_pm_matrix<Scalar>(range2,
                                                         point_map2,
                                                         vector_map2,
+                                                        scalar_map2,
                                                         points_pos_matrix,     // out
-                                                        points_normal_matrix); // out
+                                                        points_normal_matrix,  // out
+                                                        points_weight_matrix); // out
 
-        PM_cloud ref_cloud = construct_PM_cloud<PM_cloud>(ref_points_pos_matrix, ref_points_normal_matrix);
-        PM_cloud cloud = construct_PM_cloud<PM_cloud>(points_pos_matrix, points_normal_matrix);
+        PM_cloud ref_cloud = construct_PM_cloud<PM_cloud>(ref_points_pos_matrix, ref_points_normal_matrix, ref_points_weight_matrix);
+        PM_cloud cloud = construct_PM_cloud<PM_cloud>(points_pos_matrix, points_normal_matrix, points_weight_matrix);
 
         PM_transform_params pm_transform_params = PM_transform_params::Identity(4, 4);
 
@@ -439,6 +497,16 @@ namespace CGAL
        \cgalParamDescription{a property map associating normals to the elements of the point set `point_set_1`}
        \cgalParamType{a model of `ReadablePropertyMap` whose key type is the value type
                       of the iterator of `PointRange1` and whose value type is `geom_traits::Vector_3`}
+     \cgalParamNEnd
+
+     \cgalParamNBegin{scalar_map}
+       \cgalParamDescription{a property map associating 1D values - scalars to the elements of the point set `point_set_1`}
+       \cgalParamType{a model of `ReadablePropertyMap` whose key type is the value type
+                      of the iterator of `PointRange1` and whose value type is `geom_traits::FT`}
+        \cgalParamDefault{`CGAL::Constant_property_map` with the value = 1 for all scalars}
+        \cgalParamExtra{These scalars, sometimes called weights, can be provided through the `GenericDescriptorOutlierFilter`
+                        of \ref thirdpartylibpointmatcher library, where the `descName = weights`.
+                        See `outlier_filters` below and `registration_with_pointmatcher.cpp` for more details.}
      \cgalParamNEnd
 
      \cgalParamNBegin{point_set_filters}
@@ -566,6 +634,15 @@ namespace CGAL
                       of the iterator of `PointRange2` and whose value type is `geom_traits::Vector_3`}
      \cgalParamNEnd
 
+     \cgalParamNBegin{scalar_map}
+       \cgalParamDescription{a property map associating 1D values - scalars to the elements of the point set `point_set_2`}
+       \cgalParamType{a model of `ReadablePropertyMap` whose key type is the value type
+                      of the iterator of `PointRange2` and whose value type is `geom_traits::FT`}
+       \cgalParamDefault{`CGAL::Constant_property_map` with the value = 1 for all scalars}
+       \cgalParamExtra{These scalars, sometimes called weights, can be provided through the `GenericDescriptorOutlierFilter`
+                       of \ref thirdpartylibpointmatcher library, where the `descName = weights`.}
+     \cgalParamNEnd
+
      \cgalParamNBegin{point_set_filters}
        \cgalParamDescription{a chain of filters to be applied to the point set}
        \cgalParamType{a class model of `Range`. The value type of its iterator must be `ICP_config`.}
@@ -621,6 +698,11 @@ namespace CGAL
 
       namespace PSP = CGAL::Point_set_processing_3;
 
+      // basic types
+      typedef typename PSP::GetK<PointRange1, NamedParameters1>::Kernel Kernel;
+      typedef typename Kernel::FT Scalar;
+      typedef typename Kernel::Aff_transformation_3 Transformation;
+
       // property map types
       typedef typename CGAL::GetPointMap<PointRange1, NamedParameters1>::type PointMap1;
       typedef typename CGAL::GetPointMap<PointRange2, NamedParameters2>::type PointMap2;
@@ -634,14 +716,22 @@ namespace CGAL
                                                 typename boost::property_traits<NormalMap2>::value_type>::value),
                                 "The vector type of input ranges must be the same");
 
-      typedef typename PSP::GetK<PointRange1, NamedParameters1>::Kernel Kernel;
-      typedef typename Kernel::FT Scalar;
-      typedef typename Kernel::Aff_transformation_3 Transformation;
+      typedef typename std::iterator_traits<typename PointRange1::iterator>::value_type key_type1;
+      typedef typename std::iterator_traits<typename PointRange2::iterator>::value_type key_type2;
+
+      typedef typename CGAL::Constant_property_map<key_type1, Scalar> DefaultWeightMap1;
+      typedef typename CGAL::Constant_property_map<key_type2, Scalar> DefaultWeightMap2;
 
       PointMap1 point_map1 = choose_parameter(get_parameter(np1, internal_np::point_map), PointMap1());
       NormalMap1 normal_map1 = choose_parameter(get_parameter(np1, internal_np::normal_map), NormalMap1());
+      auto weight_map1 = choose_parameter(get_parameter(np1, internal_np::scalar_map), DefaultWeightMap1(Scalar(1)));
       PointMap2 point_map2 = choose_parameter(get_parameter(np2, internal_np::point_map), PointMap2());
       NormalMap2 normal_map2 = choose_parameter(get_parameter(np2, internal_np::normal_map), NormalMap2());
+      auto weight_map2 = choose_parameter(get_parameter(np2, internal_np::scalar_map), DefaultWeightMap2(Scalar(1)));
+
+      CGAL_static_assertion_msg((boost::is_same< typename boost::property_traits<decltype(weight_map1)>::value_type,
+          typename boost::property_traits<decltype(weight_map2)>::value_type> ::value),
+          "The scalar type of input ranges must be the same");
 
       // initial transformation
       Transformation initial_transformation = choose_parameter(get_parameter(np2, internal_np::transformation), Transformation(Identity_transformation()));
@@ -649,6 +739,7 @@ namespace CGAL
       return internal::compute_registration_transformation<Kernel>(point_set_1, point_set_2,
                                                                    point_map1, point_map2,
                                                                    normal_map1, normal_map2,
+                                                                   weight_map1, weight_map2,
                                                                    initial_transformation,
                                                                    internal::construct_icp<Scalar>(np1, np2));
     }
